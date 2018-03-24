@@ -1,2 +1,2 @@
 # vanishingdetector
-A library used to detect vanishing points and camera parameters from an image.
+A library used to detect vanishing points and camera parameters from an image. (This project is in progress.)
