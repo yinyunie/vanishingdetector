@@ -15,12 +15,29 @@ class VPDetection:
         self.lineInfos = []
 
     def run(self):
+        '''Main run procedure'''
 
+        print "Get vp hypotheses..."
         vpHypo = self.getVPHypVia2Lines()
-        '''Get vp hypotheses...'''
 
-        vps = []
-        clusters = []
+        print "Get sphere grid..."
+        sphereGrid = self.getSphereGrids()
+
+        print "Test vp hypotheses..."
+        vps = self.getBestVpsHyp(sphereGrid, vpHypo)
+
+        print "Get final line clusters..."
+        thAngle = 6.0 / 180.0 * np.pi
+        clusters = self.lines2Vps(thAngle, vps)
+
+        clustersedNum = 0
+
+        for i in range(3):
+            clustersedNum += len(clusters[i])
+
+        print "total: %d, clustered: %d \n" % (len(self.lines), clustersedNum)
+        print "X: %d, Y: %d, Z:%d \n" % (len(clusters[0]), len(clusters[1]), len(clusters[2]))
+
         return vps, clusters
 
     def getVPHypVia2Lines(self):
@@ -38,7 +55,7 @@ class VPDetection:
         stepVp2 = 2.0 * np.pi / numVp2
 
         # get the parameters of each line
-        for i in xrange(num):
+        for i in range(num):
             lineInfo = []
             p1 = np.array([self.lines[i][0], self.lines[i][1], 1.0])
             p2 = np.array([self.lines[i][2], self.lines[i][3], 1.0])
@@ -85,7 +102,7 @@ class VPDetection:
                 continue
 
             # first vanishing point (transferred to camera coordinate system)
-            vp1 = np.array([ vp1_Img[0] / vp1_Img[2] - self.pp[0], vp1_Img[1] / vp1_Img[2] -self.pp[1], self.f ])
+            vp1 = np.array([ vp1_Img[0] / vp1_Img[2] - self.pp[0], vp1_Img[1] / vp1_Img[2] -self.pp[1], self.f])
 
             if vp1[2] == 0.0:
                 vp1[2] = 0.0011
@@ -117,7 +134,7 @@ class VPDetection:
                 # normalise vp2
                 vp2 = vp2 / np.linalg.norm(vp2)
 
-                if vp2[2] < 0.:
+                if vp2[2] < 0.:   # should be refined
                     vp2 = -1. * vp2
 
                 # vp3
@@ -137,6 +154,170 @@ class VPDetection:
                 count = count + 1
 
         return vpHypo
+
+    def getSphereGrids(self):
+
+        # build sphere grid with 1 degree accuracy
+        angelAccuracy = 1.0 / 180.0 * np.pi
+        angleSpanLA = np.pi / 2.0
+        angleSpanLO = np.pi * 2.0
+        gridLA = np.int(angleSpanLA / angelAccuracy)
+        gridLO = np.int(angleSpanLO / angelAccuracy)
+        # initiate sphereGrid
+        sphereGrid = np.zeros([gridLA, gridLO])
+
+        # put intersection points into the grid
+        angelTolerance = 60.0 / 180.0 * np.pi
+
+        for i in range(len(self.lines)-1):
+            for j in range(i+1, len(self.lines)):
+
+                ptIntersect = np.cross(self.lineInfos[i][0], self.lineInfos[j][0])
+
+                if ptIntersect[2] == 0.:
+                    continue
+
+                X = ptIntersect[0] / ptIntersect[2] - self.pp[0]
+                Y = ptIntersect[1] / ptIntersect[2] - self.pp[1]
+                Z = self.f
+
+                latitude  = np.arccos( Z / np.sqrt( X**2 + Y**2 + Z**2 ) )
+                longitude = np.arctan2(X, Y) + np.pi
+
+                LA = np.int(latitude / angelAccuracy) # measure in degree
+
+                if LA >= gridLA: # check whether out-bound
+                    LA = gridLA - 1
+
+                LO = np.int(longitude / angelAccuracy) # measure in degree
+                if LO >= gridLO:
+                    LO = gridLO - 1
+
+                angleDev = np.abs(self.lineInfos[i][2] - self.lineInfos[j][2])
+                angleDev = min(np.pi-angleDev, angleDev)
+                if angleDev > angelTolerance:
+                    continue
+
+                sphereGrid[LA][LO] += np.sqrt(self.lineInfos[i][1] * self.lineInfos[j][1]) * (
+                            np.sin(2.0 * angleDev) + 0.2) # 0.2 is much robuster
+
+        # Gaussian filter
+        halfSize = 1
+        winSize = halfSize * 2 + 1
+        neighNum = winSize * winSize
+
+        sphereGridNew = np.zeros([gridLA, gridLO])
+
+        for i in range(halfSize, gridLA-halfSize):
+            for j in range(halfSize, gridLO-halfSize):
+
+                neighborTotal = 0.0
+
+                for m in range(0, winSize):
+                    for n in range(0, winSize):
+                        neighborTotal += sphereGrid[i-halfSize+m][j-halfSize+n]
+
+                sphereGridNew[i][j] = sphereGrid[i][j] + neighborTotal / neighNum
+
+        return sphereGridNew
+
+    def getBestVpsHyp(self, sphereGrid, vpHypo):
+
+        num = len(vpHypo)
+        oneDegree = 1.0 / 180.0 * np.pi
+        lineLength = np.zeros(num)
+
+        for i in range(num):
+            for j in range(3):
+
+                if vpHypo[i][j][2] == 0.0:
+                    continue
+                if (vpHypo[i][j][2] > 1.0) or (vpHypo[i][j][2] < -1.0):
+                    print "Some vanishing point hypothese is wrongly calculated."
+
+                latitude  = np.arccos(vpHypo[i][j][2])
+                longitude = np.arctan2(vpHypo[i][j][0], vpHypo[i][j][1]) + np.pi
+
+                gridLA = np.int(latitude / oneDegree)
+
+                if gridLA == 90:
+                    gridLA == 89
+
+                gridLO = np.int(longitude / oneDegree)
+
+                if gridLO == 360:
+                    gridLO = 359
+
+                lineLength[i] += sphereGrid[gridLA][gridLO]
+
+        # get the best hypotheses
+        bestIdx = np.argmax(lineLength)
+
+        return vpHypo[bestIdx]
+
+    def lines2Vps(self, thAngle, vps ):
+        clusters = [[] for i in range(3)]
+
+        vp2D = [[] for i in range(3)]
+        for i in range(3):
+            vp2D[i] = np.array([vps[i][0] * self.f / vps[i][2] + self.pp[0], vps[i][1] * self.f / vps[i][2] + self.pp[1]])
+
+        for i in range(len(self.lines)):
+
+            x1 = self.lines[i][0]
+            y1 = self.lines[i][1]
+            x2 = self.lines[i][2]
+            y2 = self.lines[i][3]
+
+            pt1 = np.array([x1, y1])
+            pt2 = np.array([x2, y2])
+            ptm = (pt1 + pt2) / 2.
+
+            vc = (pt1 - pt2) / (np.linalg.norm(pt1 - pt2))
+
+            minAngle = 1000.
+            bestIdx = None
+
+            for j in range(3):
+                vp2d_c = vp2D[j] - ptm
+                vp2d_c = vp2d_c / np.linalg.norm(vp2d_c)
+
+                dotValue = np.dot(vp2d_c, vc)
+
+                if dotValue > 1.0:
+                    dotValue = 1.0
+                if dotValue < -1.0:
+                    dotValue = -1.0
+
+                angle = np.arccos(dotValue)
+                angle = min(np.pi-angle, angle)
+
+
+                if angle < minAngle:
+                    minAngle = angle
+                    bestIdx = j
+
+            if minAngle<thAngle:
+                clusters[bestIdx].append(i)
+        return clusters
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

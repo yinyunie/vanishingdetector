@@ -23,6 +23,34 @@ def LineDetect(image, thLength):
 
     return lineSegs
 
+def drawClusters(image, lines, clusters):
+    palattee = [(255,0,0), (0,255,0), (0,0,255)]
+    colorID = 0
+    for cluster in clusters:
+        for line_id in cluster:
+            pt1 = (np.int(lines[line_id][0]), np.int(lines[line_id][1]))
+            pt2 = (np.int(lines[line_id][2]), np.int(lines[line_id][3]))
+            cv2.line(image, pt1, pt2, palattee[colorID], 2)
+        colorID += 1
+
+    return image
+
+def drawVps(image, vps, pp, f):
+
+    vp2D = [[] for i in range(3)]
+    for i in range(3):
+        vp2D[i] = [vps[i][0] * f / vps[i][2] + pp[0], vps[i][1] * f / vps[i][2] + pp[1]]
+
+    pts = [[] for i in range(3)]
+    for i in range(3):
+        pts[i] = (np.int(vp2D[i][0]), np.int(vp2D[i][1]))
+
+    cv2.line(image, pts[0], pts[1], (255, 255, 0), 2)
+    cv2.line(image, pts[1], pts[2], (255, 255, 0), 2)
+    cv2.line(image, pts[2], pts[0], (255, 255, 0), 2)
+
+    return image
+
 if __name__ == '__main__':
     import argparse
     import cv2
@@ -47,7 +75,6 @@ if __name__ == '__main__':
 
     # detect line segments from the source image
     lines = LineDetect( image, thLength)
-
     # Camera internal parameters
     pp = image.shape[1]/2., image.shape[0]/2. # principle point (in pixel)
     f = np.max(image.shape)# focal length (in pixel)
@@ -55,10 +82,11 @@ if __name__ == '__main__':
     noiseRatio = 0.5
     # VPDetection class
     detector = VPDetection(lines, pp, f, noiseRatio)
-    lines, clusters = detector.run()
+    vps, clusters = detector.run()
 
-    drawClusters(image, lines, clusters)
-    imshow("Image", image)
+    image1 = drawClusters(image, lines, clusters)
+
+    cv2.imshow("", image1)
     cv2.waitKey(0)
 
 
