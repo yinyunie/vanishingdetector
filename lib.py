@@ -173,6 +173,11 @@ class VPDetection:
                 if ptIntersect[2] == 0.:
                     continue
 
+                angleDev = np.abs(self.lineInfos[i][2] - self.lineInfos[j][2])
+                angleDev = min(np.pi-angleDev, angleDev)
+                if angleDev > angelTolerance:
+                    continue
+
                 X = ptIntersect[0] / ptIntersect[2] - self.pp[0]
                 Y = ptIntersect[1] / ptIntersect[2] - self.pp[1]
                 Z = self.f
@@ -188,11 +193,6 @@ class VPDetection:
                 LO = np.int(longitude / angelAccuracy) # measure in degree
                 if LO >= gridLO:
                     LO = gridLO - 1
-
-                angleDev = np.abs(self.lineInfos[i][2] - self.lineInfos[j][2])
-                angleDev = min(np.pi-angleDev, angleDev)
-                if angleDev > angelTolerance:
-                    continue
 
                 sphereGrid[LA][LO] += np.sqrt(self.lineInfos[i][1] * self.lineInfos[j][1]) * (
                             np.sin(2.0 * angleDev) + 0.2) # 0.2 is much robuster

@@ -1,4 +1,4 @@
-# vanishing points detector
+# Vanishing points detector
 ### 1. Introduction
 This library is used to detect vanishing points and camera intrinsic parameters with orientation from an image. (This project is in progress.)
 

@@ -51,6 +51,47 @@ def drawVps(image, vps, pp, f):
 
     return image
 
+def getCameraParas(lines, clusters):
+    vp2D = [[] for i in range(3)]
+    count = 0
+    for cluster in clusters:
+        lineMatrix = []
+        for line_id in cluster:
+            pt1 = np.array([lines[line_id][0], lines[line_id][1], 1.0])
+            pt2 = np.array([lines[line_id][2], lines[line_id][3], 1.0])
+            lineMatrix.append( np.cross(pt1, pt2) )
+
+        lineMatrix = np.array(lineMatrix)
+        A = lineMatrix[:, :2]
+        y = -lineMatrix[:, 2]
+        # MLS estimation
+        pt = np.linalg.inv(A.T.dot(A)).dot(A.T).dot(y)
+        # # eigen value solution
+        # eigenValues, eigenVecs = np.linalg.eig(lineMatrix.T.dot(lineMatrix))
+        # pt_eigen = eigenVecs[:,np.argmin(eigenValues)]
+        # pt_eigen = pt_eigen/pt_eigen[2]
+        vp2D[count] = pt
+        count = count + 1
+
+    CoefMatrix = np.zeros([3, 4])
+    count = 0
+    for i in range(3):
+        for j in range(i+1, 3):
+            CoefMatrix[count][0] = vp2D[i][0] * vp2D[j][0] + vp2D[i][1] * vp2D[j][1]
+            CoefMatrix[count][1] = vp2D[i][0] + vp2D[j][0]
+            CoefMatrix[count][2] = vp2D[i][1] + vp2D[j][1]
+            CoefMatrix[count][3] = 1.0
+            count = count + 1
+    eigenValues, eigenVecs = np.linalg.eig(CoefMatrix.T.dot(CoefMatrix))
+
+    paras = eigenVecs[:, np.argmin(eigenValues)]
+
+    SMatrix = np.array([[paras[0], 0., paras[1]], [0., paras[0], paras[2]], [paras[1], paras[2], paras[3]]])
+    K_temp = np.linalg.inv(np.linalg.cholesky(SMatrix).T)
+    K = K_temp / K_temp[2,2]
+
+    return K
+
 if __name__ == '__main__':
     import argparse
     import cv2
@@ -86,10 +127,15 @@ if __name__ == '__main__':
     detector = VPDetection(lines, pp, f, noiseRatio)
     vps, clusters = detector.run()
 
-    image1 = drawClusters(image, lines, clusters)
+    drawClusters(image, lines, clusters)
 
-    cv2.imshow("", image1)
+    cv2.imshow("", image)
     cv2.waitKey(0)
+
+    # decide camera intrinsic parameters
+    flag = 1
+    K = getCameraParas(lines, clusters)
+
 
 
 
