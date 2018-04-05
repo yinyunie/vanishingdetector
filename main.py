@@ -17,7 +17,7 @@ def LineDetect(image, thLength):
         y1 = line[1]
         x2 = line[2]
         y2 = line[3]
-        length = np.sqrt( ( x1 - x2 ) * ( x1 - x2 ) + ( y1 - y2 ) * ( y1 - y2 ) )
+        length = np.sqrt( ( x1 - x2 ) ** 2 + ( y1 - y2 ) ** 2 )
         if length > thLength:
             lineSegs.append([x1, y1, x2, y2])
 
@@ -58,8 +58,8 @@ if __name__ == '__main__':
     from pylsd.lsd import lsd
     from lib import VPDetection
 
-    parser = argparse.ArgumentParser(description="Vanishing points detection script.")
-    parser.add_argument("-f", "--file", dest = "filename", type=str, metavar="FILE", help = "Give the address of image address")
+    parser = argparse.ArgumentParser(description="Vanishing point detection script with camera intrinsic parameter decision.")
+    parser.add_argument("-f", "--file", dest = "filename", type=str, metavar="FILE", help = "Give the address of image source")
     args = parser.parse_args()
 
     # Read source image
@@ -75,9 +75,11 @@ if __name__ == '__main__':
 
     # detect line segments from the source image
     lines = LineDetect( image, thLength)
+
     # Camera internal parameters
     pp = image.shape[1]/2., image.shape[0]/2. # principle point (in pixel)
-    f = np.max(image.shape)# focal length (in pixel)
+
+    f = np.max(image.shape)# focal length (in pixel), a former guess
 
     noiseRatio = 0.5
     # VPDetection class

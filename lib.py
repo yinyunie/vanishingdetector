@@ -11,8 +11,7 @@ class VPDetection:
         self.pp = pp
         self.f = f
         self.noiseRatio = noiseRatio
-        # para, length, oritentation
-        self.lineInfos = []
+        self.lineInfos = [] # para, length, orientation
 
     def run(self):
         '''Main run procedure'''
@@ -30,10 +29,7 @@ class VPDetection:
         thAngle = 6.0 / 180.0 * np.pi
         clusters = self.lines2Vps(thAngle, vps)
 
-        clustersedNum = 0
-
-        for i in range(3):
-            clustersedNum += len(clusters[i])
+        clustersedNum = sum([len(clusters[i]) for i in xrange(len(clusters))])
 
         print "total: %d, clustered: %d \n" % (len(self.lines), clustersedNum)
         print "X: %d, Y: %d, Z:%d \n" % (len(clusters[0]), len(clusters[1]), len(clusters[2]))
@@ -55,7 +51,7 @@ class VPDetection:
         stepVp2 = 2.0 * np.pi / numVp2
 
         # get the parameters of each line
-        for i in range(num):
+        for i in xrange(num):
             lineInfo = []
             p1 = np.array([self.lines[i][0], self.lines[i][1], 1.0])
             p2 = np.array([self.lines[i][2], self.lines[i][3], 1.0])
@@ -82,11 +78,11 @@ class VPDetection:
         del lineInfo
 
         # get vp hypothesis for each iteration
-        vpHypo = [[[] for i in range(3)] for i in range(it*numVp2)]
+        vpHypo = [[[] for i in xrange(3)] for i in xrange(it*numVp2)]
 
         count = 0
 
-        for i in range(it):
+        for i in xrange(it):
 
             idx1 = np.random.randint(num)
             idx2 = np.random.randint(num)
@@ -114,7 +110,7 @@ class VPDetection:
             vp2 = np.zeros(3)
             vp3 = np.zeros(3)
 
-            for j in range(numVp2):
+            for j in xrange(numVp2):
                 # vp2
                 lamb = j * stepVp2
                 k1 = vp1[0] * np.sin(lamb) + vp1[1] * np.cos(lamb)
@@ -169,8 +165,8 @@ class VPDetection:
         # put intersection points into the grid
         angelTolerance = 60.0 / 180.0 * np.pi
 
-        for i in range(len(self.lines)-1):
-            for j in range(i+1, len(self.lines)):
+        for i in xrange(len(self.lines)-1):
+            for j in xrange(i+1, len(self.lines)):
 
                 ptIntersect = np.cross(self.lineInfos[i][0], self.lineInfos[j][0])
 
@@ -208,8 +204,8 @@ class VPDetection:
 
         sphereGridNew = np.zeros([gridLA, gridLO])
 
-        for i in range(halfSize, gridLA-halfSize):
-            for j in range(halfSize, gridLO-halfSize):
+        for i in xrange(halfSize, gridLA-halfSize):
+            for j in xrange(halfSize, gridLO-halfSize):
 
                 neighborTotal = 0.0
 
@@ -227,8 +223,8 @@ class VPDetection:
         oneDegree = 1.0 / 180.0 * np.pi
         lineLength = np.zeros(num)
 
-        for i in range(num):
-            for j in range(3):
+        for i in xrange(num):
+            for j in xrange(3):
 
                 if vpHypo[i][j][2] == 0.0:
                     continue
@@ -256,13 +252,13 @@ class VPDetection:
         return vpHypo[bestIdx]
 
     def lines2Vps(self, thAngle, vps ):
-        clusters = [[] for i in range(3)]
+        clusters = [[] for i in xrange(3)]
 
-        vp2D = [[] for i in range(3)]
-        for i in range(3):
+        vp2D = [[] for i in xrange(3)]
+        for i in xrange(3):
             vp2D[i] = np.array([vps[i][0] * self.f / vps[i][2] + self.pp[0], vps[i][1] * self.f / vps[i][2] + self.pp[1]])
 
-        for i in range(len(self.lines)):
+        for i in xrange(len(self.lines)):
 
             x1 = self.lines[i][0]
             y1 = self.lines[i][1]
@@ -278,7 +274,7 @@ class VPDetection:
             minAngle = 1000.
             bestIdx = None
 
-            for j in range(3):
+            for j in xrange(3):
                 vp2d_c = vp2D[j] - ptm
                 vp2d_c = vp2d_c / np.linalg.norm(vp2d_c)
 
