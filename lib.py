@@ -90,15 +90,12 @@ class VPDetection:
             idx1 = np.random.randint(num)
             idx2 = np.random.randint(num)
 
-            while idx2 == idx1:
-                idx2 = np.random.randint(num)
-
             # get the vp1
             vp1_Img = np.cross(self.lineInfos[idx1][0], self.lineInfos[idx2][0])
 
-            if vp1_Img[2] == 0.0:
-                i = i - 1
-                continue
+            while vp1_Img[2] == 0.0:
+                idx2 = np.random.randint(num)
+                vp1_Img = np.cross(self.lineInfos[idx1][0], self.lineInfos[idx2][0])
 
             # first vanishing point (transferred to camera coordinate system)
             vp1 = np.array([ vp1_Img[0] / vp1_Img[2] - self.pp[0], vp1_Img[1] / vp1_Img[2] -self.pp[1], self.f])
@@ -299,7 +296,6 @@ class VPDetection:
             if minAngle<thAngle:
                 clusters[bestIdx].append(i)
         return clusters
-
 
 
 
