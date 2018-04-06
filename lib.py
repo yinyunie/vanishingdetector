@@ -25,6 +25,9 @@ class VPDetection:
         print "Test vp hypotheses..."
         vps = self.getBestVpsHyp(sphereGrid, vpHypo)
 
+        if np.linalg.det(vps) < 0:
+            vps = [vps[0], vps[2], vps[1]]
+
         print "Get final line clusters..."
         thAngle = 6.0 / 180.0 * np.pi
         clusters = self.lines2Vps(thAngle, vps)
@@ -296,6 +299,7 @@ class VPDetection:
             if minAngle<thAngle:
                 clusters[bestIdx].append(i)
         return clusters
+
 
 
 

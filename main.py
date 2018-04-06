@@ -35,19 +35,27 @@ def drawClusters(image, lines, clusters):
 
     return image
 
-def drawVps(image, vps, pp, f):
+def drawBox(image, vps, f, pp):
+    vp2D = [[] for i in xrange(3)]
+    for i in xrange(3):
+        vp2D[i] = np.array([vps[i][0] * f / vps[i][2] + pp[0], vps[i][1] * f / vps[i][2] + pp[1]])
 
-    vp2D = [[] for i in range(3)]
-    for i in range(3):
-        vp2D[i] = [vps[i][0] * f / vps[i][2] + pp[0], vps[i][1] * f / vps[i][2] + pp[1]]
+    space = 20
+    width = image.shape[1]
+    height = image.shape[0]
 
-    pts = [[] for i in range(3)]
-    for i in range(3):
-        pts[i] = (np.int(vp2D[i][0]), np.int(vp2D[i][1]))
+    upline = np.array([[i, 0] for i in range(0, width, space)])
+    bottomline = np.array([[i, height - 1] for i in range(0, width, space)])
+    leftline = np.array([[0, i] for i in range(0, height, space)])
+    rightline = np.array([[width - 1, i] for i in range(0, height, space)])
+    points = np.vstack([upline, bottomline, leftline, rightline])
 
-    cv2.line(image, pts[0], pts[1], (255, 255, 0), 2)
-    cv2.line(image, pts[1], pts[2], (255, 255, 0), 2)
-    cv2.line(image, pts[2], pts[0], (255, 255, 0), 2)
+    palatte = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    for i in range(len(points)):
+        pt1 = points[i][0], points[i][1]
+        for k in xrange(3):
+            pt2 = (np.int(vp2D[k][0]), np.int(vp2D[k][1]))
+            cv2.line(image, pt1, pt2, palatte[k], 1)
 
     return image
 
@@ -127,16 +135,22 @@ if __name__ == '__main__':
     detector = VPDetection(lines, pp, f, noiseRatio)
     vps, clusters = detector.run()
 
-    drawClusters(image, lines, clusters)
-
-    cv2.imshow("", image)
-    cv2.waitKey(0)
-
     # decide camera intrinsic parameters
-    flag = 1
     K = getCameraParas(lines, clusters)
 
+    # Its ok to replace with the new camera intrinsic parameters to estimate the camera extrinsic matrix,
+    # but the difference is minor.
+    detector = VPDetection(lines, [K[0,2], K[1,2]], K[0,0], noiseRatio)
+    vps_n, clusters_n = detector.run()
 
+    image1 = np.copy(image)
+    drawClusters(image1, lines, clusters_n)
+    cv2.imshow("", image1)
+    cv2.waitKey(0)
 
+    image2 = np.copy(image)
+    drawBox(image2, vps_n, K[0,0], [K[0,2], K[1,2]])
+    cv2.imshow("", image2)
+    cv2.waitKey(0)
 
 
